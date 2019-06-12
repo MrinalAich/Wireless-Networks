@@ -1,0 +1,52 @@
+# Remove temporary files, if exists
+fileName=("myDlRlcStatsAt0.txt" "myDlRlcStatsAt5.txt" "myDlSinrStatsAt0.txt" "myDlSinrStatsAt5.txt")
+fileIndex=0
+while [ $fileIndex -lt 4 ]
+do
+    if [ -f ${fileName[$fileIndex]} ] ; then
+        rm ${fileName[$fileIndex]}
+    fi
+    echo -n "" > ${fileName[$fileIndex]}
+    chmod 777 ${fileName[$fileIndex]}
+    fileIndex=`expr $fileIndex + 1`    
+done
+
+   
+# Automate Over all RngRuns for all Schedulers for all Speeds
+scheduler=("ns3::RrFfMacScheduler" "ns3::PfFfMacScheduler" "ns3::FdBetFfMacScheduler" "ns3::TdMtFfMacScheduler")
+speed=(0 5)
+
+temp=0
+rngRun=08
+while [ "$rngRun" -lt 13 ] # Per RngRun
+do
+    rngRun=`expr $rngRun + 1`
+	echo "RngRun: $rngRun"
+    
+    scheduarIndex=0
+    while [ "$scheduarIndex" -lt 4 ] #Per Scheduler
+    do
+        echo "Running for: ${scheduler[$scheduarIndex]}"
+        speedIndex=0
+        while [ "$speedIndex" -lt 2 ] # Per Speed
+        do
+            echo "Scheduler-${scheduler[$scheduarIndex]} : Speed-${speed[$speedIndex]} :: RngRun-$rngRun"
+
+            # change line for Full/Half-buffer scenario
+            ./waf --run "scratch/sourceCode --speed=${speed[$speedIndex]} --fullBufferFlag=1 --schedulerType=${scheduler[$scheduarIndex]} --RngRun=$rngRun"
+
+            if [ $rngRun -eq 09 ] #Collect Stats specific to IMSI-1
+            then
+                # Merges ns3 output files into a temporary file
+                python mergerScript.py ${speed[$speedIndex]} ${scheduler[$scheduarIndex]} 1
+            else
+                python mergerScript.py ${speed[$speedIndex]} ${scheduler[$scheduarIndex]} 0
+            fi
+            speedIndex=`expr $speedIndex + 1`
+        done
+    scheduarIndex=`expr $scheduarIndex + 1`
+    done
+done
+
+# Script to do statistical analysis
+python automationScript.py
